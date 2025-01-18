@@ -17,6 +17,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      packages-delete: write
 
     steps:
       - name: Checkout repository
@@ -36,12 +37,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Add step to delete old versions
+      - name: Delete old images
+        if: github.event_name != 'pull_request'
+        uses: actions/delete-package-versions@v4
+        with:
+          package-name: tinywebserver
+          package-type: container
+          min-versions-to-keep: 5
+          delete-only-untagged-versions: true
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            # Always add latest tag on main branch
+            type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
